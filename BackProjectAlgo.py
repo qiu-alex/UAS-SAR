@@ -24,15 +24,15 @@ def rangeDelay(platPosX, platPosY, platPosZ):
 
 """"
 def range_delay(index):
-    start_cord = [-4, 8, 0]  #x, y, z
+    ref_cord = [-4, 8, 0]  #x, y, z
     first_pt = platform_position[0]
     second_pt = platform_position[index]
     dist_between_scans = first_pt[0] - second_pt[0]
     
-    range_1 = math.sqrt((first_pt[0] - start_cord[0]) ** 2 + start_cord[1] **2)
+    range_1 = math.sqrt((first_pt[0] - ref_cord[0]) ** 2 + ref_cord[1] **2)
     range_1_final = math.sqrt(range_1 ** 2 + first_pt[2] ** 2)
     
-    range_2 = math.sqrt((second_pt[0] - start_cord[0]) ** 2 + start_cord[1] **2)
+    range_2 = math.sqrt((second_pt[0] - ref_cord[0]) ** 2 + ref_cord[1] **2)
     range_2_final = math.sqrt(range_2 ** 2 + second_pt[2] ** 2)
     
     return range_2_final - range_1_final
