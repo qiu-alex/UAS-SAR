@@ -109,3 +109,15 @@ for i in range(0, 100):
 
 np.amax(abs(np.sum(pulses, axis=0)))
 
+def __range__(x = 0, y = 35, z = 0):
+    ref_cord = [x, y, z]
+    first_pt = platform_position[0]
+    
+    range_1 = math.sqrt((first_pt[0] - ref_cord[0]) ** 2 + ref_cord[1] **2)
+    range_1_final = math.sqrt(range_1 ** 2 + first_pt[2] ** 2)
+    
+    return range_1_final
+
+idx = int(round(__range__() / meters_per_bin))
+collapsed_pulses = abs(np.sum(pulses, axis=0))
+print(collapsed_pulses[idx])
