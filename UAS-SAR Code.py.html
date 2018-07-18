@@ -75,6 +75,7 @@ def range_delay(index, x = -4, y = 15, z = 0):
 #how many range bins are in one meter???
 total_distance = range_axis[0][1083] - range_axis[0][0]
 bins_per_meter = len(range_axis[0]) / total_distance
+meters_per_bin = 1 / bins_per_meter
 
 
 # In[18]:
