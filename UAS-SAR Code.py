@@ -116,3 +116,25 @@ def pixel_intensity(x, y, z = 0):
     bin_idx = int(round(__range__() / meters_per_bin))
     collapsed_pulses = (abs(np.sum(pulses, axis=0)))
     print(collapsed_pulses[bin_idx])
+
+    
+image_pixels = np.zeros((50, 50))
+row = 0
+col = 0
+
+for x in np.arange(-4, 3.92, 0.0792 * 2):
+    print(x)
+    if col != 0:
+        row = row + 1
+    col = 0
+    for y in np.arange(0, 40, 0.4 * 2):
+        image_pixels[row][col] = pixel_intensity(x, y)
+        col = col + 1  
+    
+print(np.ndim(image_pixels))
+print(len(image_pixels))
+
+
+plt.imshow(image_pixels)
+plt.colorbar()
+plt.show()
