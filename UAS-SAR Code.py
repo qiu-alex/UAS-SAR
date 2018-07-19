@@ -53,22 +53,23 @@ def graph_signal(wave_index):
 
 # In[160]:
 
-
-def range_delay(index, x = -4, y = 55, z = 0):
+def range_delay(pulse_index, x = -4, y = 0, z = 0):
+    
     ref_cord = [x, y, z]
     first_pt = platform_position[0]
-    second_pt = platform_position[index]
+    second_pt = platform_position[pulse_index]
     dist_between_scans = first_pt[0] - second_pt[0]
     
-    range_1 = math.sqrt((first_pt[0] - ref_cord[0]) ** 2 + ref_cord[1] **2)
-    range_1_final = math.sqrt(range_1 ** 2 + first_pt[2] ** 2)
+    range_1 = math.sqrt((first_pt[0] - ref_cord[0]) ** 2 + (first_pt[1] - ref_cord[1]) **2 + (first_pt[2] - ref_cord[2] ** 2)) 
+    #range_1_final = math.sqrt(range_1 ** 2 + first_pt[2] ** 2)
     
-    range_2 = math.sqrt((second_pt[0] - ref_cord[0]) ** 2 + ref_cord[1] **2)
-    range_2_final = math.sqrt(range_2 ** 2 + second_pt[2] ** 2)
+    range_2 = math.sqrt((second_pt[0] - ref_cord[0]) ** 2 + (second_pt[1] - ref_cord[1]) **2 + (second_pt[2] - ref_cord[2]) ** 2)
+    #range_2_final = math.sqrt(range_2 ** 2 + second_pt[2] ** 2)
     
-    return range_2_final - range_1_final
+    return range_2 - range_1
 
 
+range_delay(0)
 # In[161]:
 
 
