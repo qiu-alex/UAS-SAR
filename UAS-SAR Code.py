@@ -78,33 +78,12 @@ bins_per_meter = len(range_axis[0]) / total_distance
 meters_per_bin = 1 / bins_per_meter
 
 
-# In[162]:
-
-
-bin_shift = []
-for ii in range(0, 100):
-    bin_shift.append(int(round(range_delay(ii) * bins_per_meter)))
-
-
-# In[163]:
-
 
 '''
 np.argmin(np.abs(R-r))
 returns index of smallest absolute value of R = range bins  array, r is values you are looking for
 '''
 
-
-# In[164]:
-
-
-for i in range(0, 100):
-    for num in range(0, bin_shift[i]):
-        pulses[i].pop(0)
-        pulses[i].append(0)
-
-
-# In[165]:
 
 
 def __range__(x = 4, y = 15, z = 0):
@@ -119,8 +98,20 @@ def __range__(x = 4, y = 15, z = 0):
 
 # In[166]:
 
-
-bin_idx = int(round(__range__() / meters_per_bin))
-collapsed_pulses = (abs(np.sum(pulses, axis=0)))
-print(collapsed_pulses[bin_idx])
-
+def pixel_intensity(x, y, z = 0):
+    
+    #determines how many bins to shift based on the range delay
+    bin_shift = []
+    for ii in range(0, 100):
+        bin_shift.append(int(round(range_delay(ii, x, y, z) * bins_per_meter)))
+        
+    #removes the necessary amount of bins to make the pulses aligned    
+    for i in range(0, 100):
+        for num in range(0, bin_shift[i]):
+            pulses[i].pop(0)
+            pulses[i].append(0)
+    
+    #finds range of the reference pulse to target pixel and figures out which bin is matched to that object
+    bin_idx = int(round(__range__() / meters_per_bin))
+    collapsed_pulses = (abs(np.sum(pulses, axis=0)))
+    print(collapsed_pulses[bin_idx])
