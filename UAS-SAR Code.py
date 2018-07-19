@@ -1,7 +1,3 @@
-
-# coding: utf-8
-
-# # UAS-SAR Code
 '''Working in fourier spaces
 What functions do we need?
 What should I do when the platform position data is not perfectly aligned with the pulses?
