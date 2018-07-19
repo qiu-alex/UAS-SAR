@@ -2,40 +2,25 @@
 # coding: utf-8
 
 # # UAS-SAR Code
-Working in fourier spaces
+'''Working in fourier spaces
 What functions do we need?
 What should I do when the platform position data is not perfectly aligned with the pulses?
-What will I do when there is a bias in the range-position and pulse time stamp?
-# In[141]:
+What will I do when there is a bias in the range-position and pulse time stamp?'''
 
 
 import scipy.integrate as integrate
 import scipy.special as special
-
 import numpy as np
 import math
 import pickle
-
-
-# In[142]:
-
-
 import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize'] = [10, 8]   # make the default figure size bigger
-
-
-# In[143]:
-
 
 # save pkl file data
 pkl_file = open('mandrill_no_aliasing_data.pkl', 'rb')
 platform_position, pulses, range_axis = pickle.load(pkl_file)
 pkl_file.close()
 pulses = pulses.tolist()
-
-
-# In[144]:
-
 
 #graphs signal intensity
 def graph_signal(wave_index):
@@ -51,10 +36,7 @@ def graph_signal(wave_index):
     plt.show()
 
 
-# In[160]:
-
-def range_delay(pulse_index, x = -4, y = 0, z = 0):
-    
+def range_delay(index, x = -4, y = 55, z = 0):
     ref_cord = [x, y, z]
     first_pt = platform_position[0]
     second_pt = platform_position[pulse_index]
@@ -68,9 +50,7 @@ def range_delay(pulse_index, x = -4, y = 0, z = 0):
     
     return range_2 - range_1
 
-
-range_delay(0)
-# In[161]:
+    return range_2_final - range_1_final
 
 
 #how many range bins are in one meter???
@@ -85,8 +65,6 @@ np.argmin(np.abs(R-r))
 returns index of smallest absolute value of R = range bins  array, r is values you are looking for
 '''
 
-
-
 def __range__(x = 4, y = 15, z = 0):
     ref_cord = [x, y, z]
     first_pt = platform_position[0]
@@ -96,8 +74,6 @@ def __range__(x = 4, y = 15, z = 0):
     
     return range_1_final
 
-
-# In[166]:
 
 def pixel_intensity(x, y, z = 0):
     
@@ -117,24 +93,3 @@ def pixel_intensity(x, y, z = 0):
     collapsed_pulses = (abs(np.sum(pulses, axis=0)))
     print(collapsed_pulses[bin_idx])
 
-    
-image_pixels = np.zeros((50, 50))
-row = 0
-col = 0
-
-for x in np.arange(-4, 3.92, 0.0792 * 2):
-    print(x)
-    if col != 0:
-        row = row + 1
-    col = 0
-    for y in np.arange(0, 40, 0.4 * 2):
-        image_pixels[row][col] = pixel_intensity(x, y)
-        col = col + 1  
-    
-print(np.ndim(image_pixels))
-print(len(image_pixels))
-
-
-plt.imshow(image_pixels)
-plt.colorbar()
-plt.show()
