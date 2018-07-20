@@ -4,10 +4,7 @@ import numpy as np
 import math
 
 f = open("2Points_data.pkl", "rb")
-data = pickle.load(f)
-platform_position = data[0]
-pulses = data[1]
-range_axis = data[2]
+platform_position, pulses, range_axis = pickle.load(f)
 f.close()
 
 def __range__(pulse_index, x, y, z):
