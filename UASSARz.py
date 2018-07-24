@@ -26,11 +26,11 @@ def takeClosest(myList, myNumber): # finds the element in the list closest to th
     return before, after
 
 def platform_position_function(pulse_time_stamp, platform_time_stamp, platform_position): # lists associated with the values written
-    platform_position_pulse2 = []
-    c = pulse_time_stamp
-    for i in range(0, len(pulse_time_stamp))
+    platform_position_pulse2  = []
+    for i in range(0, len(pulse_time_stamp)):
         # linear interpolation to find the point values at each pulse time stamp
         (a, b) = takeClosest(platform_time_stamp, pulse_time_stamp[i])
+        c = pulse_time_stamp[i]
         r = platform_time_stamp.index(a)
         start = platform_position(r)
         end = platform_position(r+1)
@@ -79,5 +79,5 @@ def sar_imaging(res, x, y, z):
     plt.colorbar()
     plt.show()
 
-if __name__ == "__main__":
+if __name__ == "__main__":  
     sar_imaging((sys.argv[1], sys.argv[2]),  (sys.argv[3], sys.argv[4]), (sys.argv[5], sys.argv[6]), sys.argv[7])
