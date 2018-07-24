@@ -43,7 +43,8 @@ def sar_imaging(res, x, y):
             print(x, y)
 
     sar = np.reshape(list_intensities, (int((endx-startx)/resx), int((endy-starty)/resy)))
-    plt.imshow(np.flip(sar, 0))
+    sar = 45000 - sar
+    plt.imshow(np.flip(sar, 0), cmap=plt.get_cmap('gray'))
     plt.colorbar()
     plt.show()
 
