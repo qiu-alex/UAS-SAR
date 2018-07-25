@@ -12,7 +12,7 @@ def __range__(platform_position, pulse_index, x, y, z = 0): #incorporate the z o
     return math.sqrt((first_pt[0] - x) ** 2 + (first_pt[1] - y) ** 2 + (first_pt[2] - z) ** 2)
 
 def num_range_bin(range):
-    return (range - 1.99991549)/(0.00914894 / 2) #interpolation, rounding errors to smooth out image, make modular
+    return (range - 1.99991549)/(0.00914894) #interpolation, rounding errors to smooth out image, make modular
     #this uses one way range bins because you are measuring the range from the plane to the point
     
     
@@ -31,17 +31,15 @@ def num_range_bin(range):
 def takeClosest(time, value): #returns the index of where this value belongs
     for i in range(len(time)):
         #print(time[i])
-        if(value > time[i]):
-            return i
-    return len(time) - 1# this accounts for the extra radar pulses that were when the radar wasn't moving, so the motion capture x,y,z would remiain the same
+        if value >= time[i] and i + 1 < len(time):
+            if value < time[i+1]:
+                return i
+    return len(time) - 1 # this accounts for the extra radar pulses that were when the radar wasn't moving, so the motion capture x,y,z would remiain the same
 
 
 def get_platform_position(motionCapture, mcTime, timeStamp):
     #timeStamp is for the radar pulses
-    #mcTime is for the motion capture times, interval is 6 ms.
-    motionCapture = np.reshape(motionCapture, (int(len(motionCapture)/3), 3), order = 'F')
-    platform_position = np.empty((len(timeStamp), 3))
-    
+    #mcTime is for the motion capture times, interval is 6 ms.    
     start_row_index = 1663
     end_row_index = 4892
     
@@ -59,6 +57,7 @@ def get_platform_position(motionCapture, mcTime, timeStamp):
         mcTimeCopy[i - start_row_index] = mcTime[i]
     mcTime = mcTimeCopy
     mcTime -= mcTime[0]
+    #print(len(mcTime))
     
     #taking the necessary timeStamp values based on when the radar actually starts to move (look at plot of pulses and range to figure at what pulse the radar starts to move)
     timeStamp = timeStamp / 1000.0
@@ -67,9 +66,11 @@ def get_platform_position(motionCapture, mcTime, timeStamp):
         timeStampCopy[i - 250] = timeStamp[i]
     timeStamp = timeStampCopy  
     timeStamp -= timeStamp[0]
+    #print(len(timeStamp))
     
     #this initializes platform_position based on the position of the radar based on the number of cells in the timeStamp array
-    
+    platform_position = np.empty((len(timeStamp), 3))
+
     for i in range(len(timeStamp)):
         mc = motionCapture[takeClosest(mcTime, timeStamp[i])]
         x = mc[2]
@@ -119,10 +120,9 @@ def sar_imaging(res, x, y):
     range_axis = np.asarray(data["range_bins"])
     
     #read in motion capture data
-    df = pd.read_csv('UASSAR4_rail_1.csv', skiprows=3)
+    df = pd.read_csv('UASSAR4_rail_1.csv', skiprows=6)
     array = df.values
-    mcTime = array[...,1]
-    
+    mcTime = array[:,1]
     #finalList = np.zeros((6,))
     #count = 0
     #for i in range(len(array[0])):
@@ -131,18 +131,18 @@ def sar_imaging(res, x, y):
     #        count+=1
     #finalList
 
-    motionCapture = np.append(array[...,6], np.append(array[..., 7], array[..., 8]))
+    motionCapture = array[:, [6, 7, 8]] #removed the '...'
     time_stamp -= time_stamp[0]
     platform_position = get_platform_position(motionCapture, mcTime, time_stamp) #make sure to set up x, y, and z correspondingly
-    #return
-    
     list_intensities = []
-    for y in np.arange(starty, endy, resy):
+    for y in np.arange(starty, endy, resy): #adjust for the 1.99 m subtracted in the num_range_bin function
         for x in np.arange(startx, endx, resx):
             intensity_final = 0
             for ii in range(0, len(pulses)): # insert num range bins
                 # linear interpolation
+                #print(__range__(platform_position, ii, x, y, 0))
                 range_bin = num_range_bin(__range__(platform_position, ii, x, y, 0))#make sure to include the z of the objects too
+                #print(range_bin)
                 range_bin_floor = math.floor(range_bin)
                 range_bin_ceil = math.ceil(range_bin)
                 proportion = (range_bin - range_bin_floor) / (range_bin_ceil - range_bin_floor)
