@@ -7,14 +7,17 @@ import math
 import sys
 import pandas as pd
 
+
 def __range__(platform_position, pulse_index, x, y, z):
     first_pt = platform_position[pulse_index] # this is the plane position at that pulse
     return math.sqrt((first_pt[0] - x) ** 2 + (first_pt[1] - y) ** 2 + (first_pt[2] - z) ** 2)
+
 
 def num_range_bin(range):
     return (range - 1.99991549)/(0.00914894 / 2) #interpolation, rounding errors to smooth out image, mkae modular
     # meters per bin, one way range = bins 
 
+    
 #def takeClosest(myList, myNumber): # finds the element in the list closest to the element given
 #    pos = bisect_left(myList, myNumber)
 #    if pos == 0:
@@ -25,11 +28,13 @@ def num_range_bin(range):
 #    after = myList[pos]
 #    return before, after
 
+
 def takeClosest(time, value): #returns the index of where this value belongs
     for i in range(len(time)):
         if(value > time[i]):
             return i
     return 0
+
 
 def get_platform_position(motionCapture, mcTime, timeStamp):
     #timeStamp is for the radar pulses
@@ -41,7 +46,7 @@ def get_platform_position(motionCapture, mcTime, timeStamp):
     motionCaptureCopy = np.empty((end_row_index - start_row_index, 3))
     for i in range(start_row_index, end_row_index):
         motionCaptureCopy[i - start_row_index] = motionCapture[i] #fix all this indexing stuff
-    motionCapture = motionCaptureCopy #remember in motion capture data the z is normal x, x is normal y, and y is normal z
+    motionCapture = motionCaptureCopy # remember in motion capture data the z is normal x, x is normal y, and y is normal z
     mcTimeCopy = np.empty((end_row_index - start_row_index))
     for i in range(start_row_index, end_row_index):
         mcTimeCopy[i - start_row_index] = mcTime[i]
@@ -60,9 +65,8 @@ def get_platform_position(motionCapture, mcTime, timeStamp):
     return platform_position
     
     
-    
-    
 def sar_imaging(res, x, y):
+    
     resx = float(res[0])
     resy = float(res[1])
     startx = int(x[0])
@@ -70,15 +74,15 @@ def sar_imaging(res, x, y):
     starty = int(y[0])
     endy = int(y[1])
     
-    #original
+    # original
     f = open("mandrill_no_aliasing_data.pkl", "rb")
     data = pickle.load(f)
     platform_position = data[0]
-   # pulses = data[1]
-   # range_axis = data[2]
+    # pulses = data[1]
+    # range_axis = data[2]
     f.close()
     
-    #with motion capture
+    # with motion capture
     f = open("railTest1.pkl", "rb")
     data = pickle.load(f)
     f.close()
