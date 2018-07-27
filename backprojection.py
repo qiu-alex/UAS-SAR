@@ -12,8 +12,12 @@ import pickle
 import matplotlib.pyplot as plt
 from scipy.misc import imsave
 import pandas as pd
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+
 #from pulson440_constants.py import SPEED_OF_LIGHT
-SPEED_OF_LIGHT = 3e8
+SPEED_OF_LIGHT = 299792458
 
 
 def takeClosest(time, value): #returns the index of where this value belongs
@@ -25,90 +29,39 @@ def takeClosest(time, value): #returns the index of where this value belongs
     return len(time) - 1 # this accounts for the extra radar pulses that were when the radar wasn't moving, so the motion capture x,y,z would remiain the same
 
 
-def get_platform_position(motionCapture, mcTime, timeStamp):
-    #timeStamp is for the radar pulses
-    #mcTime is for the motion capture times, interval is 6 ms.    
-    start_row_index = 1745
-    end_row_index = 5463
+def get_platform_position(motionCapture, motion_capture_time, pulse_time_stamp):
+    #motion_capture_time interval is 6 m 
+    mc_start_row_index = 1745
+    mc_end_row_index = 5463
     
     #motionCapture section
-    
-    motionCaptureCopy = np.empty((end_row_index - start_row_index, 3))
-    for i in range(start_row_index, end_row_index):
-        motionCaptureCopy[i - start_row_index] = motionCapture[i] #fix all this indexing stuff
-    motionCapture = motionCaptureCopy #remember in motion capture data the z is normal x, x is normal y, and y is normal z
+    motionCapture = motionCapture[mc_start_row_index:mc_end_row_index]
     
     #motionCapture timing section needed
-    
-    mcTimeCopy = np.empty((end_row_index - start_row_index))
-    for i in range(start_row_index, end_row_index):
-        mcTimeCopy[i - start_row_index] = mcTime[i]
-    mcTime = mcTimeCopy
-    mcTime -= mcTime[0]
-    #print(len(mcTime))
+    motion_capture_time = motion_capture_time[mc_start_row_index:mc_end_row_index]
+    motion_capture_time -= motion_capture_time[0]
     
     #taking the necessary timeStamp values based on when the radar actually starts to move (look at plot of pulses and range to figure at what pulse the radar starts to move)
-    timeStamp = timeStamp / 1000.0
-    timeStampCopy = np.empty((1500 - 250,))
-    for i in range(250, 1500):
-        timeStampCopy[i - 250] = timeStamp[i]
-    timeStamp = timeStampCopy  
-    timeStamp -= timeStamp[0]
-    #print(len(timeStamp))
+    pulse_time_stamp = pulse_time_stamp / 1000.0
+    pulse_time_stamp = pulse_time_stamp[250:1500]
+    pulse_time_stamp -= pulse_time_stamp[0]
     
     #this initializes platform_position based on the position of the radar based on the number of cells in the timeStamp array
-    platform_position = np.empty((len(timeStamp), 3))
-
-    for i in range(len(timeStamp)):
-        mc = motionCapture[takeClosest(mcTime, timeStamp[i])]
-        x = mc[2]
-        y = mc[0]
-        z = mc[1]
+    platform_position = np.empty((len(pulse_time_stamp), 3))
+    
+    for i in range(len(pulse_time_stamp)):
+        (y, z, x) = motionCapture[takeClosest(motion_capture_time, pulse_time_stamp[i])]
         platform_position[i][0] = x
         platform_position[i][1] = y
         platform_position[i][2] = z
-    return platform_position, timeStamp
-    
-    
-
+    return platform_position, pulse_time_stamp
 
 def shift_approach(pulses, range_axis, platform_pos, x_vec, y_vec):
     """
     Backprojection using only discrete shifts.
     """
     
-def interp_approach(pulses, range_axis, platform_pos, x_vec, y_vec):
-    """
-    Backprojection using interpolated shifts.
-    """
-    # Ensure that the range_axis is a 1-D vector
-    range_axis = np.squeeze(range_axis)
-    
-    # Determine dimensions of data
-    num_pulses = pulses.shape[0]
-    
-    # X-Y locations of image grid
-    x_grid, y_grid = np.meshgrid(x_vec, y_vec)
-    
-    # Initialize SAR image
-    complex_image = np.zeros_like(x_grid, dtype=np.complex)
-    
-    # Iterate over each pulse
-    for ii in range(0, num_pulses):
-        
-        # Compute the 2-way range between current platform position and each 
-        # point in the image grid
-        two_way_range_grid = np.sqrt((x_grid - platform_pos[ii, 0])**2 + 
-                                         (y_grid - platform_pos[ii, 1])**2 +
-                                         platform_pos[ii, 2]**2)
-        
-        # Interpolate the current pulse's return to each range in the image 
-        # grid using linear interpolation
-        complex_image += np.interp(two_way_range_grid, range_axis, 
-                                   pulses[ii, :])
-        
-    return complex_image
-    
+   
 def fourier_approach(pulses, range_axis, platform_pos, x_vec, y_vec, 
                      center_freq):
     """
@@ -172,6 +125,38 @@ def fourier_approach(pulses, range_axis, platform_pos, x_vec, y_vec,
         complex_image[:, ii] = sum_aligned_pulses
         
     return complex_image
+    
+    
+def interp_approach(pulses, range_axis, platform_pos, x_vec, y_vec):
+    """
+    Backprojection using interpolated shifts.
+    """
+    # Ensure that the range_axis is a 1-D vector
+    range_axis = np.squeeze(range_axis)
+    
+    # Determine dimensions of data
+    num_pulses = pulses.shape[0]
+    
+    # X-Y locations of image grid
+    x_grid, y_grid = np.meshgrid(x_vec, y_vec)
+    
+    # Initialize SAR image
+    complex_image = np.zeros_like(x_grid, dtype=np.complex)
+    
+    # Iterate over each pulse
+    for ii in range(0, num_pulses):
+        
+        # Compute the ONE-WAY range between current platform position and each 
+        # point in the image grid
+        two_way_range_grid = np.sqrt((x_grid - platform_pos[ii, 0])**2 + 
+                                         (y_grid - platform_pos[ii, 1])**2 +
+                                         platform_pos[ii, 2]**2)
+        # Interpolate the current pulse's return to each range in the image 
+        # grid using linear interpolation
+        complex_image += np.interp(two_way_range_grid, range_axis, 
+                                   pulses[ii, :])
+        
+    return complex_image
 
 def parse_args(args):
     """
@@ -216,45 +201,31 @@ def main(args):
     parsed_args = parse_args(args)
     
     
-    
-    
-    #with motion capture and rail SAR
+    #with motion capture and rail SAR time alignment
     f = open(parsed_args.input, "rb")
-    data = pickle.load(f)
+    radar_data = pickle.load(f)
     f.close()
     
-    pulses = np.abs(np.asarray(data["scan_data"])) #take the absolute value since some are negative values, which shouldn't be the case
+    pulses, pulse_time_stamp, packet_ind, packet_pulse_ind, range_axis = radar_data.values()
+    pulses = np.asarray(pulses)
+    pulse_time_stamp = np.asarray(pulse_time_stamp)
+    range_axis = np.asarray(range_axis)
+    #pulses = np.asarray(data["scan_data"]) #take the absolute value since some are negative values, which shouldn't be the case
     
     #take the number of pulses that you need based on the number of timeStamps, which is then based on when the radar actually starts to move
+    pulses = pulses[250:1500] #TAKE ABSOLUTE VALUE??
     
-    pulsesCopy = np.empty((1500 - 250, len(pulses[0]))) 
-    for i in range(250, 1500):
-        pulsesCopy[i - 250] = pulses[i]
-    pulses = pulsesCopy 
+    #fix range_axis offset
+    #range_axis -= 0.2
     
-    time_stamp = np.asarray(data["time_stamp"])
-    # packet_ind = np.asarray(data["packet_ind"])
-    # packet_pulse_ind = np.asarray(data["packet_pulse_ind"])
-    range_axis = np.asarray(data["range_bins"])
     #read in motion capture data
     df = pd.read_csv('UASSAR4_rail_diagonal.csv', skiprows=6)
-    array = df.values
-    mcTime = array[:,1]
-    #finalList = np.zeros((6,))
-    #count = 0
-    #for i in range(len(array[0])):
-    #    if(array[0][i] == 'UASSAR4' and count < 7):
-    #        finalList[count] = i
-    #        count+=1
-    #finalList
-
-    motionCapture = array[:, [6, 7, 8]] #removed the '...'
-    time_stamp -= time_stamp[0]
-    platform_pos, time_stamp = get_platform_position(motionCapture, mcTime, time_stamp) #make sure to set up x, y, and z correspondingly
-    #print(platform_pos)
-    #print("plat size = ", len(platform_pos))
-    #print(time_stamp)
-    #print('time stamp size = ', len(time_stamp))
+    motion_capture_data = df.values
+    motion_capture_time = motion_capture_data[:,1]
+    motionCapture = motion_capture_data[:, [6, 7, 8]] #removed the '...'
+    platform_pos, pulse_time_stamp = get_platform_position(motionCapture, motion_capture_time, pulse_time_stamp) #rearranges x, y, and z correspondingly
+    
+    #code to check the range offset
     '''
     distance_b_Left = np.empty((len(platform_pos), ))
     for i in range(len(platform_pos)):
@@ -264,13 +235,8 @@ def main(args):
     plt.plot(distance_b_Left, range(pulses.shape[0], 0, -1))
     plt.axis('tight')
     plt.show()
-    
-    return
     '''
-    
-    
-    
-    
+   
     # Load data
     #with open(parsed_args.input, 'rb') as f:
     #    data = pickle.load(f)
@@ -310,14 +276,44 @@ def main(args):
         plt.title('Linear Scale')
         plt.colorbar()
         plt.axis('tight')
+        plt.show()
+
+        #Plot for a logarithmic scale
         #plt.subplot(122)
         #plt.imshow(20 * np.log10(image), origin='lower', extent=image_extent)
         #plt.title('Logarithmic Scale')
         #plt.colorbar()
-        plt.show()
+
+    #plot 3d figure
+    '''
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+
+    # Make data.
+    X = x_vec
+    Y = y_vec
+    X, Y = np.meshgrid(X, Y)
+    Z = image
+
+    # Plot the surface.
+    surf = ax.plot_surface(X, Y, Z, cmap=cm.coolwarm,
+                       linewidth=0, antialiased=False)
+
+    # Customize the z axis.
+    #ax.set_zlim(-1.01, 1.01)
+    #ax.zaxis.set_major_locator(LinearLocator(10))
+    #ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+
+    # Add a color bar which maps values to colors.
+    #fig.colorbar(surf, shrink=0.5, aspect=5)
+    
+    
+    plt.show()
         
     # Save image
-    imsave(parsed_args.output, image)
+    
+    #imsave(parsed_args.output, image)
+    '''
     
 if __name__ == "__main__":
     """
