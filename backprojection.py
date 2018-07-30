@@ -10,7 +10,7 @@ import numpy as np
 import argparse
 import pickle
 import matplotlib.pyplot as plt
-from scipy.misc import imsave
+import scipy.stats as stat
 import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -19,21 +19,84 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 #from pulson440_constants.py import SPEED_OF_LIGHT
 SPEED_OF_LIGHT = 299792458
 
+def interpolate_position(proportion, pos_start, pos_end): #not really necessary
+    return ((pos_end - pos_start) * 0) + pos_start
 
-def takeClosest(time, value): #returns the index of where this value belongs
-    for i in range(len(time)):
+def takeClosest(motionCaptureTime, value, motionCapture): #returns the index of where this value belongs
+    for i in range(len(motionCaptureTime)):
         #print(time[i])
-        if value >= time[i] and i + 1 < len(time):
-            if value < time[i+1]:
-                return i
-    return len(time) - 1 # this accounts for the extra radar pulses that were when the radar wasn't moving, so the motion capture x,y,z would remiain the same
+        if value >= motionCaptureTime[i] and i + 1 < len(motionCaptureTime):
+            if value < motionCaptureTime[i+1]:
+                proportion = (value - motionCaptureTime[i]) / (motionCaptureTime[i+1] - motionCaptureTime[i])
+                x = interpolate_position(proportion, motionCapture[i][2], motionCapture[i+1][2])
+                y = interpolate_position(proportion, motionCapture[i][0], motionCapture[i+1][0])
+                z = interpolate_position(proportion, motionCapture[i][1], motionCapture[i+1][1])
+                return (x, y, z)
+    return motionCapture[-1] # this accounts for the extra radar pulses that were when the radar wasn't moving, so the motion capture x,y,z would remiain the same
+
+
+def mc_start(motionCapture): #input velocity instead to say that it's moving?
+    for i in range((len(motionCapture) - 101)):
+        if abs(motionCapture[i + 100][0] - motionCapture[i][0]) > 0.03 or abs(motionCapture[i + 100][1] - motionCapture[i][1]) > 0.03 or abs(motionCapture[i + 100][2] - motionCapture[i][2]) > 0.03:
+            a = i
+            return a 
+
+def mc_end(motionCapture): #are all the intervals the same??
+    for j in range((len(motionCapture) - 101)):
+        if abs(motionCapture[len(motionCapture) - j -101][0] - motionCapture[len(motionCapture) - j - 1][0]) > 0.03 or abs(motionCapture[len(motionCapture) - j -101][1] - motionCapture[len(motionCapture) - j - 1][1]) > 0.03 or abs(motionCapture[len(motionCapture) - j -101][2] - motionCapture[len(motionCapture) - j - 1][2]) > 0.03:
+            b = len(motionCapture) - j
+            return b
+        
+'''
+
+def pulse_start(pulses): #/
+    pulses = np.abs(pulses)
+    for i in range((len(pulses[:][0]) - 101)):
+        x = pulses[i - 1]
+        y = pulses[i + 100]
+        if np.sum(np.abs(x-y)) > (1000 * len(pulses[:][0])):
+            a = i
+            return a
+
+def pulse_end(pulses):
+    pulses = np.abs(pulses)
+    for j in range((len(pulses[:][0]) - 101)):
+        x = pulses[len(pulses[:][0]) - j]
+        y = pulses[len(pulses[:][0]) - j - 101]
+        if np.sum(np.abs(x - y)) > (500 * len(pulses[:][0])):
+            b = len(pulses[:][0]) - j
+            return b
+'''
+
+def pulse_start(pulses): #TEST LOGARITHMIC SCALE AS WELL
+    #pulses = np.abs(pulses)
+    pulses = pulses + 2**17
+    for i in range(len(pulses[:, 0]) - 3):
+        x = pulses[i: i+3]
+        chi2, p, dof, expected = stat.chi2_contingency(x)
+        print(i, p)
+        #if(p > 0.05):
+            #print(i)
+            #return
+        #if np.sum(np.abs(x-y)) > (1000 * len(pulses[:][0])):
+        #    a = i
+        #    return a
+
+def pulse_end(pulses):
+    pulses = np.abs(pulses)
+    for j in range((len(pulses[:][0]) - 101)):
+        x = pulses[len(pulses[:][0]) - j]
+        y = pulses[len(pulses[:][0]) - j - 101]
+        if np.sum(np.abs(x - y)) > (500 * len(pulses[:][0])):
+            b = len(pulses[:][0]) - j
+            return b
 
 
 def get_platform_position(motionCapture, motion_capture_time, pulse_time_stamp):
     #motion_capture_time interval is 6 m 
-    mc_start_row_index = 1745
-    mc_end_row_index = 5463
-    
+    mc_start_row_index =  1745 #mc_start(motionCapture) #1745
+    mc_end_row_index = 5463# mc_end(motionCapture) #5463
+    print(mc_start_row_index, mc_end_row_index)
     #motionCapture section
     motionCapture = motionCapture[mc_start_row_index:mc_end_row_index]
     
@@ -50,10 +113,7 @@ def get_platform_position(motionCapture, motion_capture_time, pulse_time_stamp):
     platform_position = np.empty((len(pulse_time_stamp), 3))
     
     for i in range(len(pulse_time_stamp)):
-        (y, z, x) = motionCapture[takeClosest(motion_capture_time, pulse_time_stamp[i])]
-        platform_position[i][0] = x
-        platform_position[i][1] = y
-        platform_position[i][2] = z
+        (platform_position[i][0], platform_position[i][1], platform_position[i][2]) = takeClosest(motion_capture_time, pulse_time_stamp[i], motionCapture)
     return platform_position, pulse_time_stamp
 
 def shift_approach(pulses, range_axis, platform_pos, x_vec, y_vec):
@@ -213,10 +273,12 @@ def main(args):
     #pulses = np.asarray(data["scan_data"]) #take the absolute value since some are negative values, which shouldn't be the case
     
     #take the number of pulses that you need based on the number of timeStamps, which is then based on when the radar actually starts to move
-    pulses = pulses[250:1500] #TAKE ABSOLUTE VALUE??
+    #pulse_start(pulses)
+    #return
+    pulses = pulses[250:1500]
     
     #fix range_axis offset
-    #range_axis -= 0.2
+    range_axis -= 0.2
     
     #read in motion capture data
     df = pd.read_csv('UASSAR4_rail_diagonal.csv', skiprows=6)
@@ -224,7 +286,6 @@ def main(args):
     motion_capture_time = motion_capture_data[:,1]
     motionCapture = motion_capture_data[:, [6, 7, 8]] #removed the '...'
     platform_pos, pulse_time_stamp = get_platform_position(motionCapture, motion_capture_time, pulse_time_stamp) #rearranges x, y, and z correspondingly
-    
     #code to check the range offset
     '''
     distance_b_Left = np.empty((len(platform_pos), ))
@@ -235,8 +296,7 @@ def main(args):
     plt.plot(distance_b_Left, range(pulses.shape[0], 0, -1))
     plt.axis('tight')
     plt.show()
-    '''
-   
+   '''
     # Load data
     #with open(parsed_args.input, 'rb') as f:
     #    data = pickle.load(f)
@@ -270,19 +330,18 @@ def main(args):
     # Show SAR image
     if not parsed_args.no_visualize:
         image_extent = (x_vec[0], x_vec[-1], y_vec[0], y_vec[-1])
-        #plt.figure()
+        plt.figure()
         #plt.subplot(121)
         plt.imshow(image, origin='lower', extent=image_extent)
         plt.title('Linear Scale')
         plt.colorbar()
-        plt.axis('tight')
-        plt.show()
-
+        #plt.axis('tight')
         #Plot for a logarithmic scale
         #plt.subplot(122)
         #plt.imshow(20 * np.log10(image), origin='lower', extent=image_extent)
         #plt.title('Logarithmic Scale')
         #plt.colorbar()
+        plt.show()
 
     #plot 3d figure
     '''
