@@ -50,6 +50,7 @@ def pulse_start(pulses): #TEST LOGARITHMIC SCALE AS WELL and increase degrees of
     for i in range(len(pulses[:, 0]) - 3):
         x = pulses[i: i + 3]
         chi2, p, dof, expected = stat.chi2_contingency(x)
+        print(i, p)
         if p != 1.0:
             return i
 
@@ -205,6 +206,8 @@ def parse_args(args):
             description=('SAR image formation via backprojection'))
     parser.add_argument('input', nargs='?', type=str,
                         help='Pickle containing data')
+    parser.add_argument('csv', nargs='?', type=str,
+                        help='csv file for motion capture')
     parser.add_argument('x_bounds', nargs=2, type=float, 
                         help=('Minimum and maximum bounds of the X coordinates'
                               ' of the image (m)'))
@@ -271,7 +274,7 @@ def main(args):
     
     
     #read in motion capture data
-    df = pd.read_csv('UASSAR4_rail_1.csv', skiprows=6)
+    df = pd.read_csv(parsed_args.csv, skiprows=6)
     motion_capture_data = df.values
     motion_capture_time = motion_capture_data[:,1]
     motionCapture = motion_capture_data[:, [6, 7, 8]] #removed the '...'
