@@ -19,10 +19,10 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 #from pulson440_constants.py import SPEED_OF_LIGHT
 SPEED_OF_LIGHT = 299792458
 
-def interpolate_position(proportion, pos_start, pos_end): #not really necessary
-    return ((pos_end - pos_start) * 0) + pos_start
+def interpolate_position(proportion, pos_start, pos_end): #not really necessary but interpolates x, y, and z positions; maybe use np.interp()?
+    return ((pos_end - pos_start) * proportion) + pos_start
 
-def takeClosest(motionCaptureTime, value, motionCapture): #returns the index of where this value belongs
+def takeClosest(motionCaptureTime, value, motionCapture): #returns the x, y, z radar position at a certain time
     for i in range(len(motionCaptureTime)):
         #print(time[i])
         if value >= motionCaptureTime[i] and i + 1 < len(motionCaptureTime):
@@ -38,76 +38,55 @@ def takeClosest(motionCaptureTime, value, motionCapture): #returns the index of 
 def mc_start(motionCapture): #input velocity instead to say that it's moving?
     for i in range((len(motionCapture) - 101)):
         if abs(motionCapture[i + 100][0] - motionCapture[i][0]) > 0.03 or abs(motionCapture[i + 100][1] - motionCapture[i][1]) > 0.03 or abs(motionCapture[i + 100][2] - motionCapture[i][2]) > 0.03:
-            a = i
-            return a 
+            return i
 
 def mc_end(motionCapture): #are all the intervals the same??
     for j in range((len(motionCapture) - 101)):
         if abs(motionCapture[len(motionCapture) - j -101][0] - motionCapture[len(motionCapture) - j - 1][0]) > 0.03 or abs(motionCapture[len(motionCapture) - j -101][1] - motionCapture[len(motionCapture) - j - 1][1]) > 0.03 or abs(motionCapture[len(motionCapture) - j -101][2] - motionCapture[len(motionCapture) - j - 1][2]) > 0.03:
-            b = len(motionCapture) - j
-            return b
-        
-'''
+            return len(motionCapture) - j
 
-def pulse_start(pulses): #/
-    pulses = np.abs(pulses)
-    for i in range((len(pulses[:][0]) - 101)):
-        x = pulses[i - 1]
-        y = pulses[i + 100]
-        if np.sum(np.abs(x-y)) > (1000 * len(pulses[:][0])):
-            a = i
-            return a
-
-def pulse_end(pulses):
-    pulses = np.abs(pulses)
-    for j in range((len(pulses[:][0]) - 101)):
-        x = pulses[len(pulses[:][0]) - j]
-        y = pulses[len(pulses[:][0]) - j - 101]
-        if np.sum(np.abs(x - y)) > (500 * len(pulses[:][0])):
-            b = len(pulses[:][0]) - j
-            return b
-'''
-
-def pulse_start(pulses): #TEST LOGARITHMIC SCALE AS WELL
-    #pulses = np.abs(pulses)
+def pulse_start(pulses): #TEST LOGARITHMIC SCALE AS WELL and increase degrees of freedom for when drone is moving
     pulses = pulses + 2**17
     for i in range(len(pulses[:, 0]) - 3):
-        x = pulses[i: i+3]
+        x = pulses[i: i + 3]
         chi2, p, dof, expected = stat.chi2_contingency(x)
-        print(i, p)
-        #if(p > 0.05):
-            #print(i)
-            #return
-        #if np.sum(np.abs(x-y)) > (1000 * len(pulses[:][0])):
-        #    a = i
-        #    return a
+        if p != 1.0:
+            return i
 
 def pulse_end(pulses):
-    pulses = np.abs(pulses)
-    for j in range((len(pulses[:][0]) - 101)):
-        x = pulses[len(pulses[:][0]) - j]
-        y = pulses[len(pulses[:][0]) - j - 101]
-        if np.sum(np.abs(x - y)) > (500 * len(pulses[:][0])):
-            b = len(pulses[:][0]) - j
-            return b
+    pulses = pulses + 2**17
+    index_max = None
+    count_max = 0
+    count_ones = 0
+    stored_i = None
+    for i in range(pulse_start(pulses), len(pulses[:, 0]) - 3):
+        x = pulses[i: i+3]
+        chi2, p, dof, expected = stat.chi2_contingency(x)
+        if p == 1.0 and count_ones == 0:
+            count_ones+=1
+            stored_i = i
+        elif p == 1.0:
+            count_ones+=1
+        else:
+            if count_ones > count_max:
+                count_max = count_ones
+                index_max = stored_i
+            count_ones = 0
+    return index_max
 
 
 def get_platform_position(motionCapture, motion_capture_time, pulse_time_stamp):
     #motion_capture_time interval is 6 m 
-    mc_start_row_index =  1745 #mc_start(motionCapture) #1745
-    mc_end_row_index = 5463# mc_end(motionCapture) #5463
-    print(mc_start_row_index, mc_end_row_index)
+    mc_start_row_index = mc_start(motionCapture) #1745
+    mc_end_row_index = mc_end(motionCapture) #5463
+    print("motion capture start = ", mc_start_row_index, "motion capture stop = ", mc_end_row_index)
+    
     #motionCapture section
     motionCapture = motionCapture[mc_start_row_index:mc_end_row_index]
     
     #motionCapture timing section needed
     motion_capture_time = motion_capture_time[mc_start_row_index:mc_end_row_index]
     motion_capture_time -= motion_capture_time[0]
-    
-    #taking the necessary timeStamp values based on when the radar actually starts to move (look at plot of pulses and range to figure at what pulse the radar starts to move)
-    pulse_time_stamp = pulse_time_stamp / 1000.0
-    pulse_time_stamp = pulse_time_stamp[250:1500]
-    pulse_time_stamp -= pulse_time_stamp[0]
     
     #this initializes platform_position based on the position of the radar based on the number of cells in the timeStamp array
     platform_position = np.empty((len(pulse_time_stamp), 3))
@@ -270,18 +249,29 @@ def main(args):
     pulses = np.asarray(pulses)
     pulse_time_stamp = np.asarray(pulse_time_stamp)
     range_axis = np.asarray(range_axis)
-    #pulses = np.asarray(data["scan_data"]) #take the absolute value since some are negative values, which shouldn't be the case
+    
+    #taking the necessary timeStamp values based on when the radar actually starts to move (look at plot of pulses and range to figure at what pulse the radar starts to move)
+    #print(pulse_end(pulses))
+    #return
+
+    pulses_start = pulse_start(pulses)
+    pulses_end = pulse_end(pulses)
+    print("pulse start = ", pulses_start, "pulse stop = ", pulses_end)
+    
+    
+    pulse_time_stamp = pulse_time_stamp / 1000.0
+    pulse_time_stamp = pulse_time_stamp[pulses_start:pulses_end] #250 - 1500
+    pulse_time_stamp -= pulse_time_stamp[0]
     
     #take the number of pulses that you need based on the number of timeStamps, which is then based on when the radar actually starts to move
-    #pulse_start(pulses)
-    #return
-    pulses = pulses[250:1500]
+    pulses = pulses[pulses_start:pulses_end]
     
     #fix range_axis offset
     range_axis -= 0.2
     
+    
     #read in motion capture data
-    df = pd.read_csv('UASSAR4_rail_diagonal.csv', skiprows=6)
+    df = pd.read_csv('UASSAR4_rail_1.csv', skiprows=6)
     motion_capture_data = df.values
     motion_capture_time = motion_capture_data[:,1]
     motionCapture = motion_capture_data[:, [6, 7, 8]] #removed the '...'
