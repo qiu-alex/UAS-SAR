@@ -4,7 +4,10 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-import sys
+#import sys
+#import pandas as pd
+
+
 
 def __range__(platform_position, pulse_index, x, y, z):
     first_pt = platform_position[pulse_index] # this is the plane position at that pulse
@@ -20,8 +23,10 @@ def sar_imaging(res, x, y):
     endx = int(x[1])
     starty = int(y[0])
     endy = int(y[1])
-    f = open("mandrill_no_aliasing_data.pkl", "rb")
-    data = pickle.load(f)
+    #f = open("mandrill_no_aliasing_data.pkl", "rb")
+    f = open('mandrill_no_aliasing_data.pkl','rb')
+    data=pickle.load(f)
+    f.close()
     platform_position = data[0]
     pulses = data[1]
     range_axis = data[2]
@@ -49,5 +54,5 @@ def sar_imaging(res, x, y):
     plt.show()
 
 if __name__ == "__main__":
-    sar_imaging((sys.argv[1], sys.argv[2]),  (sys.argv[3], sys.argv[4]), (sys.argv[5], sys.argv[6]))
+    sar_imaging((0.06, 0.06),  (-3, 3), (-3, 3))
     
